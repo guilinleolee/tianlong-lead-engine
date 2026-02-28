@@ -15,13 +15,13 @@ if hasattr(sys.stdout, 'reconfigure'):
 
 def print_banner():
     print("=" * 60)
-    print("🐉 天龙获客引擎 (Tianlong Lead Engine) v2.0")
+    print("🐉 天龙获客引擎 (Tianlong Lead Engine) v2.5")
     print("=" * 60)
 
 def main():
     print_banner()
     print("\n请选择操作：")
-    print("1. 🚀 运行全平台获客流水线 (电鸭 + 程序员客栈)")
+    print("1. 🚀 运行全平台获客流水线 (电鸭+客栈+猿急送+实现网)")
     print("2. 📊 查看 CRM 仪表盘")
     print("3. 🤖 启动 AI 回复生成器 (交互模式)")
     print("4. 📋 查看今日获客简报")

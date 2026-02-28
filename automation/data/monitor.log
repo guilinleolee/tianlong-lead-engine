@@ -37,3 +37,33 @@
 [2026-02-28 19:55:01] [Proginn] 请求搜索列表: https://www.proginn.com/search?keyword=后端&type=user
 [2026-02-28 19:55:01] [Proginn] 抓取到 30 条初始线索
 [2026-02-28 19:55:01] [Proginn] 筛选出 0 条符合关键词的项目/机会
+[2026-02-28 21:13:54] [Proginn] 开始 Proginn 扫描...
+[2026-02-28 21:13:54] [Proginn] 请求搜索列表: https://www.proginn.com/search?keyword=Python&type=user
+[2026-02-28 21:13:55] [Proginn] 请求搜索列表: https://www.proginn.com/search?keyword=后端&type=user
+[2026-02-28 21:13:55] [Proginn] 请求搜索列表: https://www.proginn.com/search?keyword=爬虫&type=user
+[2026-02-28 21:13:56] [Proginn] 抓取到 45 条初始线索
+[2026-02-28 21:13:56] [Proginn] 筛选出 10 条符合关键词的项目/机会
+[2026-02-28 21:14:59] [Proginn] 开始 Proginn 扫描...
+[2026-02-28 21:14:59] [Proginn] 请求搜索列表: https://www.proginn.com/search?keyword=Python&type=user
+[2026-02-28 21:15:00] [Proginn] 请求搜索列表: https://www.proginn.com/search?keyword=后端&type=user
+[2026-02-28 21:15:01] [Proginn] 请求搜索列表: https://www.proginn.com/search?keyword=爬虫&type=user
+[2026-02-28 21:15:03] [Proginn] 抓取到 45 条初始线索
+[2026-02-28 21:15:03] [Proginn] 筛选出 0 条符合关键词的项目/机会
+[2026-02-28 21:33:47] [EleDuck] 开始扫描...
+[2026-02-28 21:33:47] [EleDuck] 抓取到 0 个项目
+[2026-02-28 21:33:47] [EleDuck] 筛选出 0 个新项目
+[2026-02-28 21:33:47] [Proginn] 开始 Proginn 扫描...
+[2026-02-28 21:33:47] [Proginn] 请求搜索列表: https://www.proginn.com/search?keyword=Python&type=user
+[2026-02-28 21:33:49] [Proginn] 请求搜索列表: https://www.proginn.com/search?keyword=自动化&type=user
+[2026-02-28 21:33:51] [Proginn] 请求搜索列表: https://www.proginn.com/search?keyword=脚本&type=user
+[2026-02-28 21:33:52] [Proginn] 抓取到 45 条初始线索
+[2026-02-28 21:33:52] [Proginn] 筛选出 17 条符合关键词的项目/机会
+[2026-02-28 21:33:58] [EleDuck] 开始扫描...
+[2026-02-28 21:33:59] [EleDuck] 抓取到 0 个项目
+[2026-02-28 21:33:59] [EleDuck] 筛选出 0 个新项目
+[2026-02-28 21:33:59] [Proginn] 开始 Proginn 扫描...
+[2026-02-28 21:33:59] [Proginn] 请求搜索列表: https://www.proginn.com/search?keyword=Python&type=user
+[2026-02-28 21:33:59] [Proginn] 请求搜索列表: https://www.proginn.com/search?keyword=自动化&type=user
+[2026-02-28 21:33:59] [Proginn] 请求搜索列表: https://www.proginn.com/search?keyword=脚本&type=user
+[2026-02-28 21:34:00] [Proginn] 抓取到 45 条初始线索
+[2026-02-28 21:34:00] [Proginn] 筛选出 0 条符合关键词的项目/机会

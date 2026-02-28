@@ -16,20 +16,15 @@ import re
 from typing import List, Dict, Optional
 import hashlib
 import sys
+import config
 
 # ==================== 配置区 ====================
-# 继承 eleduck_monitor 的配置逻辑
-KEYWORDS = [
-    'Python', '后端', '爬虫', '数据', '自动化', 'FastAPI', 'Django', 'Flask',
-    'AI', 'LLM', '大模型', 'Web3', 'Node.js'
-]
-
-MIN_BUDGET = 3000
+# 继承自集中配置
+KEYWORDS = config.KEYWORDS
+MIN_BUDGET = config.MIN_BUDGET
 CHECK_INTERVAL = 1800 
 
 PUSH_CONFIG = {
-    'wechat': False,
-    'dingtalk': False,
     'local_log': True,
 }
 
@@ -65,11 +60,9 @@ class ProginnMonitor:
             
     def fetch_leads(self) -> List[Dict]:
         """抓取线索。目前从搜索页获取项目/用户动态作为初步线索"""
-        # 注意：程序员客栈项目大厅通常需要登录
-        # 这里的 URL 可以扩展为包含 Cookie 的深层抓取
         urls = [
-            "https://www.proginn.com/search?keyword=Python&type=user",
-            "https://www.proginn.com/search?keyword=后端&type=user"
+            f"https://www.proginn.com/search?keyword={kw}&type=user"
+            for kw in KEYWORDS[:3] # 取前 3 个关键词进行搜索，避免请求过多
         ]
         
         all_leads = []
@@ -80,7 +73,7 @@ class ProginnMonitor:
                 r.raise_for_status()
                 soup = BeautifulSoup(r.text, 'html.parser')
                 
-                # 寻找线索项 (这里根据之前观察到的 J_user 结构)
+                # 寻找线索项
                 items = soup.select(".item.J_user")
                 for item in items:
                     lead = self._parse_item(item)

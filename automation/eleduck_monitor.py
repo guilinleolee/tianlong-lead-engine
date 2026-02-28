@@ -7,28 +7,32 @@
 生成时间：2026-02-27
 """
 
+import requests
+from bs4 import BeautifulSoup
+import time
+import json
+from datetime import datetime
+from pathlib import Path
+import re
+from typing import List, Dict, Optional
 import hashlib
 import config
 
 # ==================== 配置区 ====================
 
-# 监控关键词（匹配技术栈）
+# 使用集中配置
 KEYWORDS = config.KEYWORDS
-
-# 最低预算过滤（元）
 MIN_BUDGET = config.MIN_BUDGET
 
 # 检查间隔（秒）
 CHECK_INTERVAL = 1800  # 30 分钟
 
 # 推送方式配置
-PUSH_CONFIG = config.PUSH_CONFIG if hasattr(config, 'PUSH_CONFIG') else {'local_log': True}
-
-# ServerChan 微信推送密钥（如需启用）
-SERVER_CHAN_KEY = ""
-
-# 钉钉机器人 Webhook（如需启用）
-DINGTALK_WEBHOOK = ""
+PUSH_CONFIG = {
+    'wechat': bool(config.SCTKEY),
+    'feishu': bool(config.FEISHU_WEBHOOK),
+    'local_log': True,
+}
 
 # 数据保存路径
 DATA_DIR = Path(__file__).parent / "data"
@@ -179,72 +183,25 @@ class EleDuckMonitor:
         return filtered
     
     def send_notification(self, projects: List[Dict]):
-        """发送通知"""
+        """发送通知 (保留本地日志，详细推送由 Orchestrator 处理)"""
         if not projects:
             return
         
-        message = self._format_message(projects)
-        
-        # 本地日志
         if PUSH_CONFIG['local_log']:
-            self._log(f"发现 {len(projects)} 个新项目:\n{message}")
-        
-        # 微信推送
-        if PUSH_CONFIG['wechat'] and SERVER_CHAN_KEY:
-            self._push_wechat(message)
-        
-        # 钉钉推送
-        if PUSH_CONFIG['dingtalk'] and DINGTALK_WEBHOOK:
-            self._push_dingtalk(message)
-    
-    def _format_message(self, projects: List[Dict]) -> str:
-        """格式化通知消息"""
-        lines = [f"🔔 电鸭新项目提醒 ({datetime.now().strftime('%m-%d %H:%M')})\n"]
-        
-        for i, p in enumerate(projects, 1):
-            budget_str = f"¥{p['budget']:,}" if p['budget'] > 0 else "面议"
-            lines.append(f"{i}. {p['title']}")
-            lines.append(f"   预算：{budget_str}")
-            lines.append(f"   链接：{p['link']}")
-            lines.append("")
-        
-        return '\n'.join(lines)
-    
-    def _push_wechat(self, message: str):
-        """ServerChan 微信推送"""
-        try:
-            url = f"https://sctapi.ftqq.com/{SERVER_CHAN_KEY}.send"
-            data = {
-                'title': '电鸭新项目提醒',
-                'desp': message
-            }
-            requests.post(url, data=data, timeout=5)
-        except Exception as e:
-            self._log(f"微信推送失败：{e}")
-    
-    def _push_dingtalk(self, message: str):
-        """钉钉机器人推送"""
-        try:
-            data = {
-                "msgtype": "markdown",
-                "markdown": {
-                    "title": "电鸭新项目提醒",
-                    "text": message.replace('\n', '\n\n')
-                }
-            }
-            requests.post(DINGTALK_WEBHOOK, json=data, timeout=5)
-        except Exception as e:
-            self._log(f"钉钉推送失败：{e}")
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            self._log(f"发现 {len(projects)} 个新项目")
     
     def _log(self, message: str):
         """本地日志"""
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        log_line = f"[{timestamp}] {message}"
-        print(log_line)
-        
-        log_file = DATA_DIR / "monitor.log"
-        with open(log_file, 'a', encoding='utf-8') as f:
-            f.write(log_line + '\n')
+        log_line = f"[{timestamp}] [EleDuck] {message}"
+        try:
+            print(log_line)
+            log_file = DATA_DIR / "monitor.log"
+            with open(log_file, 'a', encoding='utf-8') as f:
+                f.write(log_line + '\n')
+        except:
+            pass
     
     def run_once(self):
         """执行一次监控"""
@@ -264,12 +221,11 @@ class EleDuckMonitor:
         self.projects_cache['projects'] = projects
         self.projects_cache['last_update'] = datetime.now().isoformat()
         self._save_cache()
+        return new_projects
     
     def run_continuous(self):
         """持续监控"""
         self._log(f"启动持续监控 (间隔{CHECK_INTERVAL}秒)")
-        self._log(f"关键词：{', '.join(KEYWORDS)}")
-        self._log(f"最低预算：¥{MIN_BUDGET:,}")
         
         try:
             while True:
@@ -285,11 +241,13 @@ class EleDuckMonitor:
 if __name__ == "__main__":
     import sys
     
+    # 强制 UTF-8 输出
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+        
     monitor = EleDuckMonitor()
     
     if len(sys.argv) > 1 and sys.argv[1] == '--once':
-        # 只运行一次
         monitor.run_once()
     else:
-        # 持续运行
         monitor.run_continuous()

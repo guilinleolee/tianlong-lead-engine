@@ -1,0 +1,7 @@
+# 敏感密钥配置模板 (请复制并重命名为 config_local.py)
+
+# 飞书群机器人 Webhook 地址
+FEISHU_WEBHOOK = ""
+
+# ServerChan (微信推送) SendKey
+SCTKEY = "您的SendKey"

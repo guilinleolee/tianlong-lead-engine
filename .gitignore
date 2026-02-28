@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Tianlong Lead Engine Secrets
+automation/config_local.py
+automation/reports/
+automation/data/*.log
+automation/data/*.txt
+automation/data/*.json
+crm_data/
+
+# IDE
+.vscode/
+.idea/
