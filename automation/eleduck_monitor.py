@@ -1,0 +1,311 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+电鸭社区项目监控脚本
+功能：定时扫描新项目，关键词匹配，推送通知
+作者：李秘
+生成时间：2026-02-27
+"""
+
+import requests
+from bs4 import BeautifulSoup
+import time
+import json
+from datetime import datetime
+from pathlib import Path
+import re
+from typing import List, Dict, Optional
+import hashlib
+
+# ==================== 配置区 ====================
+
+# 监控关键词（匹配技术栈）
+KEYWORDS = [
+    'Vue', 'React', 'Python', 'Node.js', '全栈',
+    '小程序', 'Uni-app', 'TypeScript', 'FastAPI',
+    'AI', 'LLM', '大模型', 'Web3'
+]
+
+# 最低预算过滤（元）
+MIN_BUDGET = 3000
+
+# 检查间隔（秒）
+CHECK_INTERVAL = 1800  # 30 分钟
+
+# 推送方式配置
+PUSH_CONFIG = {
+    'wechat': False,      # 微信推送（需配置 ServerChan）
+    'email': False,       # 邮件推送
+    'dingtalk': False,    # 钉钉机器人
+    'local_log': True,    # 本地日志
+}
+
+# ServerChan 微信推送密钥（如需启用）
+SERVER_CHAN_KEY = ""
+
+# 钉钉机器人 Webhook（如需启用）
+DINGTALK_WEBHOOK = ""
+
+# 数据保存路径
+DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR.mkdir(exist_ok=True)
+PROJECTS_FILE = DATA_DIR / "projects.json"
+SEEN_FILE = DATA_DIR / "seen_projects.txt"
+
+# ==================== 核心类 ====================
+
+class EleDuckMonitor:
+    def __init__(self):
+        self.session = requests.Session()
+        self.session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        })
+        self.seen_ids = self._load_seen_ids()
+        self.projects_cache = self._load_cache()
+    
+    def _load_seen_ids(self) -> set:
+        """加载已看过的项目 ID"""
+        if SEEN_FILE.exists():
+            with open(SEEN_FILE, 'r', encoding='utf-8') as f:
+                return set(line.strip() for line in f if line.strip())
+        return set()
+    
+    def _save_seen_ids(self):
+        """保存已看过的项目 ID"""
+        with open(SEEN_FILE, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(self.seen_ids))
+    
+    def _load_cache(self) -> Dict:
+        """加载项目缓存"""
+        if PROJECTS_FILE.exists():
+            with open(PROJECTS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {'projects': []}
+    
+    def _save_cache(self):
+        """保存项目缓存"""
+        with open(PROJECTS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(self.projects_cache, f, ensure_ascii=False, indent=2)
+    
+    def fetch_projects(self) -> List[Dict]:
+        """抓取项目列表"""
+        url = "https://eleduck.com/search?query=%E5%BC%80%E5%8F%91"
+        
+        try:
+            response = self.session.get(url, timeout=10)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            projects = []
+            # 注意：以下选择器需要根据实际页面结构调整
+            items = soup.select('.job-item, .project-item, li')
+            
+            for item in items:
+                try:
+                    project = self._parse_item(item)
+                    if project:
+                        projects.append(project)
+                except Exception as e:
+                    continue
+            
+            return projects
+            
+        except Exception as e:
+            self._log(f"抓取失败：{e}")
+            return []
+    
+    def _parse_item(self, item) -> Optional[Dict]:
+        """解析单个项目"""
+        try:
+            # 提取标题
+            title_elem = item.select_one('a.title, h3 a, .title')
+            if not title_elem:
+                return None
+            
+            title = title_elem.get_text(strip=True)
+            link = title_elem.get('href', '')
+            
+            # 生成项目 ID（用链接哈希）
+            project_id = hashlib.md5(link.encode()).hexdigest()[:12]
+            
+            # 提取预算
+            budget_text = item.get_text()
+            budget = self._extract_budget(budget_text)
+            
+            # 提取发布时间
+            time_elem = item.select_one('.time, .date, span:last-child')
+            publish_time = time_elem.get_text(strip=True) if time_elem else ""
+            
+            return {
+                'id': project_id,
+                'title': title,
+                'link': f"https://eleduck.com{link}" if link.startswith('/') else link,
+                'budget': budget,
+                'publish_time': publish_time,
+                'found_at': datetime.now().isoformat()
+            }
+        except Exception as e:
+            return None
+    
+    def _extract_budget(self, text: str) -> int:
+        """从文本中提取预算"""
+        patterns = [
+            r'(\d+)k-(\d+)k',  # 5k-10k
+            r'(\d+)-(\d+) 元',
+            r'预算 [：:]\s*(\d+)',
+            r'(\d+)元',
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                groups = match.groups()
+                if len(groups) == 2:
+                    # 取平均值
+                    if 'k' in pattern:
+                        return int((int(groups[0]) + int(groups[1])) * 1000 / 2)
+                    return int((int(groups[0]) + int(groups[1])) / 2)
+                elif len(groups) == 1:
+                    return int(groups[0])
+        
+        return 0
+    
+    def filter_projects(self, projects: List[Dict]) -> List[Dict]:
+        """过滤项目"""
+        filtered = []
+        
+        for project in projects:
+            # 跳过已看过的
+            if project['id'] in self.seen_ids:
+                continue
+            
+            # 预算过滤
+            if project['budget'] > 0 and project['budget'] < MIN_BUDGET:
+                continue
+            
+            # 关键词匹配
+            text = f"{project['title']} {project.get('description', '')}"
+            if not any(kw.lower() in text.lower() for kw in KEYWORDS):
+                continue
+            
+            filtered.append(project)
+            self.seen_ids.add(project['id'])
+        
+        return filtered
+    
+    def send_notification(self, projects: List[Dict]):
+        """发送通知"""
+        if not projects:
+            return
+        
+        message = self._format_message(projects)
+        
+        # 本地日志
+        if PUSH_CONFIG['local_log']:
+            self._log(f"发现 {len(projects)} 个新项目:\n{message}")
+        
+        # 微信推送
+        if PUSH_CONFIG['wechat'] and SERVER_CHAN_KEY:
+            self._push_wechat(message)
+        
+        # 钉钉推送
+        if PUSH_CONFIG['dingtalk'] and DINGTALK_WEBHOOK:
+            self._push_dingtalk(message)
+    
+    def _format_message(self, projects: List[Dict]) -> str:
+        """格式化通知消息"""
+        lines = [f"🔔 电鸭新项目提醒 ({datetime.now().strftime('%m-%d %H:%M')})\n"]
+        
+        for i, p in enumerate(projects, 1):
+            budget_str = f"¥{p['budget']:,}" if p['budget'] > 0 else "面议"
+            lines.append(f"{i}. {p['title']}")
+            lines.append(f"   预算：{budget_str}")
+            lines.append(f"   链接：{p['link']}")
+            lines.append("")
+        
+        return '\n'.join(lines)
+    
+    def _push_wechat(self, message: str):
+        """ServerChan 微信推送"""
+        try:
+            url = f"https://sctapi.ftqq.com/{SERVER_CHAN_KEY}.send"
+            data = {
+                'title': '电鸭新项目提醒',
+                'desp': message
+            }
+            requests.post(url, data=data, timeout=5)
+        except Exception as e:
+            self._log(f"微信推送失败：{e}")
+    
+    def _push_dingtalk(self, message: str):
+        """钉钉机器人推送"""
+        try:
+            data = {
+                "msgtype": "markdown",
+                "markdown": {
+                    "title": "电鸭新项目提醒",
+                    "text": message.replace('\n', '\n\n')
+                }
+            }
+            requests.post(DINGTALK_WEBHOOK, json=data, timeout=5)
+        except Exception as e:
+            self._log(f"钉钉推送失败：{e}")
+    
+    def _log(self, message: str):
+        """本地日志"""
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        log_line = f"[{timestamp}] {message}"
+        print(log_line)
+        
+        log_file = DATA_DIR / "monitor.log"
+        with open(log_file, 'a', encoding='utf-8') as f:
+            f.write(log_line + '\n')
+    
+    def run_once(self):
+        """执行一次监控"""
+        self._log("开始扫描...")
+        
+        projects = self.fetch_projects()
+        self._log(f"抓取到 {len(projects)} 个项目")
+        
+        new_projects = self.filter_projects(projects)
+        self._log(f"筛选出 {len(new_projects)} 个新项目")
+        
+        if new_projects:
+            self.send_notification(new_projects)
+            self._save_seen_ids()
+        
+        # 更新缓存
+        self.projects_cache['projects'] = projects
+        self.projects_cache['last_update'] = datetime.now().isoformat()
+        self._save_cache()
+    
+    def run_continuous(self):
+        """持续监控"""
+        self._log(f"启动持续监控 (间隔{CHECK_INTERVAL}秒)")
+        self._log(f"关键词：{', '.join(KEYWORDS)}")
+        self._log(f"最低预算：¥{MIN_BUDGET:,}")
+        
+        try:
+            while True:
+                self.run_once()
+                time.sleep(CHECK_INTERVAL)
+        except KeyboardInterrupt:
+            self._log("监控已停止")
+            self._save_seen_ids()
+
+
+# ==================== 入口 ====================
+
+if __name__ == "__main__":
+    import sys
+    
+    monitor = EleDuckMonitor()
+    
+    if len(sys.argv) > 1 and sys.argv[1] == '--once':
+        # 只运行一次
+        monitor.run_once()
+    else:
+        # 持续运行
+        monitor.run_continuous()

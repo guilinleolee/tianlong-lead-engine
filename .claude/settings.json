@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//d//**)",
+      "Read(//d/个人笔记/**)",
+      "Read(//d/工作日志/**)",
+      "Read(//d/投资思考/**)",
+      "Bash(\"d:/编程兼职/analysis/ELEDUCK_MARKETING_ANALYSIS.md\":*)",
+      "Bash(python:*)"
+    ],
+    "additionalDirectories": [
+      "d:\\编程兼职"
+    ]
+  }
+}
