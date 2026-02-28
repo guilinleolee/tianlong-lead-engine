@@ -7,38 +7,22 @@
 生成时间：2026-02-27
 """
 
-import requests
-from bs4 import BeautifulSoup
-import time
-import json
-from datetime import datetime
-from pathlib import Path
-import re
-from typing import List, Dict, Optional
 import hashlib
+import config
 
 # ==================== 配置区 ====================
 
 # 监控关键词（匹配技术栈）
-KEYWORDS = [
-    'Vue', 'React', 'Python', 'Node.js', '全栈',
-    '小程序', 'Uni-app', 'TypeScript', 'FastAPI',
-    'AI', 'LLM', '大模型', 'Web3'
-]
+KEYWORDS = config.KEYWORDS
 
 # 最低预算过滤（元）
-MIN_BUDGET = 3000
+MIN_BUDGET = config.MIN_BUDGET
 
 # 检查间隔（秒）
 CHECK_INTERVAL = 1800  # 30 分钟
 
 # 推送方式配置
-PUSH_CONFIG = {
-    'wechat': False,      # 微信推送（需配置 ServerChan）
-    'email': False,       # 邮件推送
-    'dingtalk': False,    # 钉钉机器人
-    'local_log': True,    # 本地日志
-}
+PUSH_CONFIG = config.PUSH_CONFIG if hasattr(config, 'PUSH_CONFIG') else {'local_log': True}
 
 # ServerChan 微信推送密钥（如需启用）
 SERVER_CHAN_KEY = ""

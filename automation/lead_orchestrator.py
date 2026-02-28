@@ -14,6 +14,9 @@ from eleduck_monitor import EleDuckMonitor
 from proginn_monitor import ProginnMonitor
 from crm_manager import SimpleCRM
 from ai_responder import AIResponder
+from feishu_notifier import FeishuNotifier
+from serverchan_notifier import ServerChanNotifier
+import config
 import sys
 
 # 强制 UTF-8
@@ -132,6 +135,22 @@ def run_pipeline():
     report_path = generate_report(all_qualified)
     log(f"全平台获客简报已生成：{report_path}")
     
+    # 6. 发送飞书通知 (如有配置)
+    feishu_url = config.FEISHU_WEBHOOK or os.environ.get("FEISHU_WEBHOOK")
+    if feishu_url and all_qualified:
+        notifier = FeishuNotifier(feishu_url)
+        sources = ", ".join(set(l['source'] for l in all_qualified))
+        notifier.send_lead_alert(len(all_qualified), sources)
+        log("飞书获客提醒已推送。")
+
+    # 7. 发送微信通知 (Server酱)
+    sct_key = config.SCTKEY or os.environ.get("SCTKEY")
+    if sct_key and all_qualified:
+        sct_notifier = ServerChanNotifier(sct_key)
+        sources = ", ".join(set(l['source'] for l in all_qualified))
+        sct_notifier.send_lead_report(len(all_qualified), sources)
+        log("微信 (Server酱) 获客提醒已推送。")
+
     log(">>> 流水线执行完毕 <<<")
     return report_path
 
